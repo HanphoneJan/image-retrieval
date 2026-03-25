@@ -1,0 +1,28 @@
+[project]
+name = "multimodal-rag-engine"
+version = "1.0.0"
+description = "多模态RAG检索引擎 - 基于CLIP的智能语义检索系统"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "flask",
+    "faiss-cpu",
+    "torch",
+    "torchvision",
+    "opencv-python",
+    "pillow",
+    "numpy",
+    "tqdm",
+    "easydict",
+    "openai",
+    "pydantic",
+    "python-dotenv",
+    "matplotlib",
+    "openai-clip",
+]
+
+[project.optional-dependencies]
+gpu = ["faiss-gpu"]
+
+[tool.setuptools]
+py-modules = []
