@@ -1,7 +1,6 @@
 # -*- coding:utf-8 -*-
 """
 @file name  : agent_tools.py
-@author     : multimodal-rag-engine
 @date       : 2026-03-23
 @brief      : Agent工具定义模块
               为AI Agent提供图像检索能力的工具封装

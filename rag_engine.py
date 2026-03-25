@@ -1,7 +1,6 @@
 # -*- coding:utf-8 -*-
 """
 @file name  : rag_engine.py
-@author     : multimodal-rag-engine
 @date       : 2026-03-23
 @brief      : RAG（检索增强生成）引擎
               整合向量检索与LLM生成能力，实现智能图像检索与问答

@@ -1,7 +1,6 @@
 # -*- coding:utf-8 -*-
 """
 @file name  : flask_app.py
-@author     : multimodal-rag-engine
 @date       : 2026-03-23
 @brief      : 多模态RAG检索引擎 - Web服务端
               支持传统检索、RAG增强检索、Agent工具调用

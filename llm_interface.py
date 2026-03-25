@@ -1,7 +1,6 @@
 # -*- coding:utf-8 -*-
 """
 @file name  : llm_interface.py
-@author     : multimodal-rag-engine
 @date       : 2026-03-23
 @brief      : LLM接口封装，支持OpenAI兼容格式的API调用
               提供查询扩展、结果解释、RAG问答等功能
