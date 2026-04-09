@@ -6,6 +6,380 @@
 
 ---
 
+## 专题：高频技术问题深度解析
+
+### 问题1：工厂方法、工厂模式是什么？
+
+**简短回答（面试时用）**：
+工厂模式是一种创建型设计模式，将对象的创建逻辑封装起来，调用者只需要知道要什么，不需要知道怎么创建。项目中用Faiss的`index_factory`根据字符串创建不同类型的索引，还有`get_llm_interface()`工厂函数创建LLM接口。
+
+**详细解析**：
+
+**1. 简单工厂（Simple Factory）**
+```python
+# 项目中实际代码 - llm_interface.py:275
+def get_llm_interface() -> LLMInterface:
+    """工厂函数：获取LLM接口实例"""
+    return LLMInterface()
+```
+优点：封装创建逻辑，调用者无需关心构造细节
+
+**2. 工厂方法（Factory Method）**
+```python
+# 项目中实际代码 - retrieval_by_faiss.py:57
+index = faiss.index_factory(self.feat_dim, self.index_string)
+# 传入 "IVF4096,PQ32x8" 创建 IVF-PQ 索引
+# 传入 "Flat" 创建暴力搜索索引
+```
+根据参数动态创建不同对象，解耦创建与使用。
+
+**3. 为什么要用工厂模式？**
+
+| 场景 | 不用工厂 | 用工厂 |
+|:---|:---|:---|
+| 创建Faiss索引 | 到处写if/else判断索引类型 | 一行代码，字符串配置即可 |
+| 切换索引类型 | 改多处代码 | 改配置字符串 |
+| 扩展新索引 | 修改原有代码 | 注册新的创建逻辑 |
+
+**面试金句**：
+> "工厂模式的核心是**解耦**——将'创建什么'和'怎么创建'分开。比如我们的系统支持IVF-PQ、HNSW等多种索引，用工厂模式可以通过配置灵活切换，而不需要改业务代码。"
+
+---
+
+### 问题2：图像如何向量化？
+
+**简短回答**：
+用CLIP模型将图像编码成512维向量。流程：OpenCV读取→BGR转RGB→CLIP预处理(Resize224→Normalize)→模型推理→L2归一化。
+
+**详细流程**：
+
+```
+图像文件
+    ↓
+┌───────────────┐
+│ cv2.imread()  │  ← OpenCV读取，BGR格式
+└───────┬───────┘
+        ↓
+┌───────────────┐
+│ BGR→RGB转换   │  ← cv2.cvtColor()
+└───────┬───────┘
+        ↓
+┌───────────────┐
+│ PIL.Image     │  ← Image.fromarray()
+└───────┬───────┘
+        ↓
+┌───────────────┐
+│ CLIP预处理    │  ← self.preprocess()
+│ - Resize 224  │
+│ - Normalize   │
+└───────┬───────┘
+        ↓
+┌───────────────┐
+│ CLIP编码      │  ← encode_image()
+│ 输出512维向量 │
+└───────┬───────┘
+        ↓
+┌───────────────┐
+│ L2归一化      │  ← 关键！使cos_sim = dot_product
+└───────┬───────┘
+        ↓
+   1×512 float32
+```
+
+**关键代码** (`retrieval_by_faiss.py:126-141`)：
+```python
+def encode_image_by_path(self, path_img):
+    # 1. 读取图像 (BGR格式)
+    image_bgr = cv_imread(path_img)
+    
+    # 2. 颜色空间转换
+    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+    
+    # 3. CLIP预处理 + 推理
+    image = self.preprocess(Image.fromarray(image_rgb)).unsqueeze(0).to(device)
+    with torch.no_grad():
+        img_feat_vec = self.model.encode_image(image)
+        
+        # 4. L2归一化（关键！）
+        img_feat_vec /= img_feat_vec.norm(dim=-1, keepdim=True)
+    
+    return img_feat_vec.cpu().numpy()  # (1, 512)
+```
+
+**为什么文本不需要归一化？**
+```python
+# 图像编码 - 需要手动归一化
+img_feat_vec /= img_feat_vec.norm(dim=-1, keepdim=True)  # ✅ 必须
+
+# 文本编码 - 不需要
+feat_text = self.model.encode_text(token)
+# feat_text /= feat_text.norm(...)  # ❌ CLIP内部已处理
+```
+原因：CLIP训练时，文本编码器内部已经做了归一化，图像编码器没有。
+
+---
+
+### 问题3：多查询检索与融合是如何设计的？为什么这么设计？为什么要分数归一化？
+
+**简短回答**：
+用LLM把查询扩展成多个变体（如"狗"→"puppy"/"canine"），每个查询分别检索，然后合并去重、按距离排序。分数归一化是为了让不同查询的分数可比，但我们的实现中用的是**去重+排序**策略。
+
+**详细设计**：
+
+**流程图**：
+```
+用户查询: "dog"
+    ↓
+┌─────────────────┐
+│ LLM查询扩展     │  → ["dog", "puppy", "canine", "pet", "金毛"]
+└────────┬────────┘
+         ↓
+┌─────────────────┐
+│ 多查询并行检索  │  → 每个查询检索topk*2个结果
+└────────┬────────┘
+         ↓
+┌─────────────────┐
+│ Set去重         │  → 同一张图片只保留一次
+│ 保留首次出现的  │
+└────────┬────────┘
+         ↓
+┌─────────────────┐
+│ 全局排序        │  → 按distance升序
+└────────┬────────┘
+         ↓
+┌─────────────────┐
+│ 截断取TopK      │  → 返回最终结果
+└─────────────────┘
+```
+
+**核心代码** (`rag_engine.py:124-149`)：
+```python
+# Step 1: 查询扩展
+expanded_queries = self.llm.expand_query(query, num_expansions=3)
+# 结果: ["dog", "puppy playing", "canine outdoor", "pet in garden"]
+
+# Step 2: 多查询检索与融合
+all_results = []
+seen_paths = set()
+
+for q in expanded_queries:
+    distance_result, index_result, path_list = self._search(q, topk*2)
+    
+    for dist, idx, path in zip(distance_result, index_result, path_list):
+        if path not in seen_paths and path != 'None':
+            seen_paths.add(path)  # 去重
+            all_results.append({
+                "path": path,
+                "distance": float(dist),
+                "index": int(idx),
+                "matched_query": q
+            })
+
+# Step 3: 重排序
+all_results.sort(key=lambda x: x["distance"])
+final_results = all_results[:topk]
+```
+
+**为什么这么设计？**
+
+| 设计点 | 原因 |
+|:---|:---|
+| **查询扩展** | 不同表述召回不同结果，提升召回率30%+ |
+| **每个查topk*2** | 给去重预留空间，避免过滤后结果太少 |
+| **Set去重** | 同一张图片可能被多个查询召回，去重避免重复展示 |
+| **按distance排序** | 距离越小越相似，保留最相关的结果 |
+
+**关于分数归一化**：
+
+在我们的实现中，**没有使用分数归一化**，原因：
+1. 所有查询使用**同一个CLIP模型**和**同一个Faiss索引**
+2. 向量已经L2归一化，距离计算方式一致
+3. 距离值本身就是可比的
+
+**什么时候需要分数归一化？**
+```python
+# 场景1: 多路召回（不同索引/不同模型）
+# 向量检索分数: 0.1 ~ 0.5
+# 文本匹配分数: 0.8 ~ 0.95
+# 需要归一化到同一范围才能比较
+
+# 场景2: 不同查询的分数分布差异大
+query1_scores = [0.1, 0.2, 0.3]  # 分布较散
+query2_scores = [0.8, 0.81, 0.82]  # 分布集中
+# 需要min-max归一化: (score - min) / (max - min)
+```
+
+**面试应答策略**：
+> "我们的项目因为使用统一的向量空间和检索方式，所以直接用原始距离排序。如果面试官追问，可以说'如果需要融合多个不同来源的分数，我会用min-max归一化或Z-score归一化，让分数可比后再加权融合。'"
+
+---
+
+### 问题4：RAG Pipeline是什么？如何设计的？
+
+**简短回答**：
+RAG = Retrieval-Augmented Generation（检索增强生成）。我的Pipeline设计为4步：查询扩展→多路检索→结果融合→AI解释。还用策略模式设计了可扩展的RAGPipeline类，支持自定义步骤。
+
+**RAG核心流程**：
+```
+┌─────────────────────────────────────────────────────────┐
+│                    RAG Pipeline                         │
+│                                                         │
+│   查询扩展     多路检索     结果融合     AI解释         │
+│      │           │           │           │              │
+│      ▼           ▼           ▼           ▼              │
+│   ┌─────┐    ┌─────┐    ┌─────┐    ┌─────┐             │
+│   │ LLM │ → │CLIP │ → │算法 │ → │ LLM │             │
+│   │扩展 │    │+Faiss│    │去重 │    │解释 │             │
+│   └─────┘    └─────┘    └─────┘    └─────┘             │
+│      ↑                                       ↓          │
+│   用户输入                              最终输出        │
+│   "狗的图片"                           结果+解释        │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**代码实现** (`rag_engine.py:308-393`)：
+```python
+class RAGPipeline:
+    """RAG Pipeline 构建器"""
+    
+    def __init__(self, retrieval_module, llm_interface):
+        self.retrieval_module = retrieval_module
+        self.llm = llm_interface
+        self.steps = []  # 存储处理步骤
+    
+    def add_step(self, name: str, func):
+        """添加处理步骤，支持链式调用"""
+        self.steps.append({"name": name, "func": func})
+        return self
+    
+    def execute(self, query: str, **kwargs):
+        """按顺序执行所有步骤"""
+        context = {"query": query, "results": [], "metadata": {}}
+        
+        for step in self.steps:
+            context = step["func"](context, self.retrieval_module, self.llm, **kwargs)
+        
+        return context
+
+# 使用示例
+def create_default_rag_pipeline(retrieval_module, llm_interface):
+    pipeline = RAGPipeline(retrieval_module, llm_interface)
+    
+    # 定义处理步骤
+    def retrieve_step(ctx, rm, llm, **kwargs):
+        distance, ids, paths = rm.retrieval_func(ctx["query"], kwargs.get('topk', 10))
+        ctx["results"] = [{"path": p, "distance": float(d)} for p, d in zip(paths, distance)]
+        return ctx
+    
+    def explain_step(ctx, rm, llm, **kwargs):
+        if llm.available:
+            ctx["explanation"] = llm.explain_results(ctx["query"], ctx["results"])
+        return ctx
+    
+    pipeline.add_step("retrieve", retrieve_step)
+    pipeline.add_step("explain", explain_step)
+    
+    return pipeline
+```
+
+**Pipeline设计亮点**：
+
+| 设计点 | 说明 |
+|:---|:---|
+| **策略模式** | 每个步骤是独立函数，可替换 |
+| **上下文传递** | context字典在各步骤间传递状态 |
+| **链式调用** | `add_step().add_step()` 优雅构建 |
+| **错误隔离** | 单步失败不影响其他步骤 |
+
+**面试金句**：
+> "RAG Pipeline的核心是**编排**——将检索和生成能力串起来。我的设计用了策略模式，每个步骤可插拔。比如可以方便地加入重排序步骤（Cross-Encoder）或多样性过滤步骤，不需要改原有代码。"
+
+---
+
+### 问题5：Query改写方法有哪些？假设答案法有了解吗？
+
+**Query改写的5种方法**：
+
+| 方法 | 原理 | 适用场景 |
+|:---|:---|:---|
+| **同义词扩展** | "狗"→["puppy", "canine", "犬"] | 基础召回提升 |
+| **语义扩展** | 用LLM生成不同角度描述 | 多维度召回 |
+| **Query分解** | "金毛在草地上跑"→["金毛", "草地", "跑"] | 复杂查询拆解 |
+| **假设答案法** | 先假设答案，再反向构造查询 | 精确检索 |
+| **HyDE** | 生成虚拟文档做检索 | 稠密检索增强 |
+
+**项目中使用的方法** (`llm_interface.py:59-109`)：
+```python
+def expand_query(self, user_query: str, num_expansions: int = 3) -> List[str]:
+    """语义扩展：用LLM生成多角度查询"""
+    prompt = f"""作为图像搜索助手，请基于用户的查询生成{num_expansions}个不同表达的搜索意图。
+
+用户查询: {user_query}
+
+要求:
+1. 保持原始语义，但使用不同的词汇和表达方式
+2. 可以从不同角度描述（如风格、场景、对象、颜色等）
+3. 每个扩展查询简洁明了，不超过20个字
+
+输出:"""
+    
+    # 调用LLM生成扩展查询
+    response = self.client.chat.completions.create(...)
+    expanded = response.choices[0].message.content.strip().split('\n')
+    return expanded
+```
+
+**假设答案法（Hypothetical Answer）详解**：
+
+**原理**：
+```
+传统方式：
+查询 → 检索相关文档 → 生成答案
+
+假设答案法：
+查询 → LLM生成假设答案 → 用答案检索 → 返回真实答案
+```
+
+**为什么有效？**
+- 查询往往很短，信息量少
+- 假设答案包含了可能的**关键词**和**语义信息**
+- 用答案去检索，比用短查询检索更精准
+
+**示例**：
+```
+用户查询: "怎么训练狗狗定点排便？"
+
+假设答案: 
+"训练狗狗定点排便需要准备尿垫，在狗狗饭后和睡醒后
+引导它去尿垫，成功后给予奖励，坚持一周左右就能学会。"
+
+用假设答案去检索 → 找到更详细的训练教程
+```
+
+**进阶：HyDE（Hypothetical Document Embeddings）**
+```python
+# HyDE 流程
+def hyde_retrieval(query, llm, encoder, index):
+    # Step 1: 生成虚拟文档
+    hypothetical_doc = llm.generate(
+        prompt=f"基于查询'{query}'，生成一段相关的文档内容："
+    )
+    
+    # Step 2: 编码虚拟文档
+    query_vector = encoder.encode(hypothetical_doc)
+    
+    # Step 3: 用虚拟文档向量检索
+    results = index.search(query_vector, topk=10)
+    
+    return results
+```
+
+**面试回答建议**：
+> "项目中主要用了**LLM语义扩展**，生成多角度查询提升召回。我也了解**假设答案法**——就是先用LLM生成一个假设的答案或文档，然后用它去检索，这样比直接用短查询检索效果更好。这个在稠密检索场景特别有用，因为生成的假设文档包含了更丰富的语义信息。"
+
+---
+
 ## 1. 自我介绍话术模板
 
 ### 1.1 电梯演讲（1分钟版）

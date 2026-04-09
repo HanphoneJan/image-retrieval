@@ -31,8 +31,8 @@ index_builder = ImageIndexBuilder(device=CFG.device)
 incremental_manager = IncrementalIndexManager(
     main_index=ir_model.index_model,
     index_builder=index_builder,
-    buffer_size_threshold=CFG.get('buffer_size_threshold', 1000),
-    state_dir=CFG.get('index_state_dir', './data/index_state')
+    buffer_size_threshold=getattr(CFG, 'buffer_size_threshold', 1000),
+    state_dir=getattr(CFG, 'index_state_dir', './data/index_state')
 )
 # 加载之前保存的状态
 incremental_manager.load_state(map_dict)
