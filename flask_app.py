@@ -40,21 +40,21 @@ print(f"[FlaskApp] 增量索引管理器已初始化: {incremental_manager.get_s
 
 # 初始化RAG引擎（如果配置了LLM）
 llm_interface = LLMInterface(
-    base_url=CFG.get('llm_base_url', None),
-    api_key=CFG.get('llm_api_key', None),
-    model=CFG.get('llm_model', 'gpt-3.5-turbo')
+    base_url=getattr(CFG, 'llm_base_url', None),
+    api_key=getattr(CFG, 'llm_api_key', None),
+    model=getattr(CFG, 'llm_model', 'gpt-3.5-turbo')
 )
 rag_engine = RAGEngine(
     retrieval_module=ir_model,
     llm_interface=llm_interface,
-    enable_expansion=CFG.get('rag_enable_expansion', True),
-    enable_explanation=CFG.get('rag_enable_explanation', True),
+    enable_expansion=getattr(CFG, 'rag_enable_expansion', True),
+    enable_explanation=getattr(CFG, 'rag_enable_explanation', True),
     index_manager=incremental_manager
 )
 
 # 初始化Agent工具（如果启用）
 agent_tools = None
-if CFG.get('agent_tools_enabled', True) and llm_interface.available:
+if getattr(CFG, 'agent_tools_enabled', True) and llm_interface.available:
     agent_tools = create_tools_for_rag_engine(rag_engine)
     print(f"[FlaskApp] Agent工具已加载: {agent_tools.list_tools()}")
 
