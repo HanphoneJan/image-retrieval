@@ -61,6 +61,11 @@ if getattr(CFG, 'agent_tools_enabled', True) and llm_interface.available:
 app = Flask(__name__)
 
 
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204
+
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -89,7 +94,10 @@ def search():
     # step3: 结果封装
     results = []
     for distance, path in zip(distance_result, path_list):
-        dict_ = {'path':  os.path.join('static', 'img', os.path.basename(path)),
+        basename = os.path.basename(path.rstrip('/\\')) if path and path != 'None' else None
+        if not basename:
+            continue
+        dict_ = {'path': 'static/img/' + basename,
                  'text': f'distance: {distance:.3f}'}
         results.append(dict_)
 
@@ -126,7 +134,8 @@ def search_rag():
 
         # 转换结果路径为URL可访问格式（使用正斜杠）
         for r in result.get('results', []):
-            r['url'] = 'static/img/' + os.path.basename(r['path'])
+            basename = os.path.basename(r.get('path', '').rstrip('/\\'))
+            r['url'] = ('static/img/' + basename) if basename else ''
 
         return jsonify(result)
 
@@ -184,7 +193,8 @@ def rag_qa():
 
         # 转换路径
         for r in result.get('context', []):
-            r['url'] = os.path.join('static', 'img', os.path.basename(r['path']))
+            basename = os.path.basename(r.get('path', '').rstrip('/\\'))
+            r['url'] = ('static/img/' + basename) if basename else ''
 
         return jsonify(result)
 
@@ -215,7 +225,8 @@ def chat():
 
         # 转换路径
         for r in result.get('context', []):
-            r['url'] = os.path.join('static', 'img', os.path.basename(r['path']))
+            basename = os.path.basename(r.get('path', '').rstrip('/\\'))
+            r['url'] = ('static/img/' + basename) if basename else ''
 
         return jsonify(result)
 
@@ -284,8 +295,8 @@ def status():
         "status": "running",
         "llm_available": llm_interface.available,
         "llm_model": llm_interface.model if llm_interface.available else None,
-        "rag_enabled": CFG.get('rag_enable_explanation', True),
-        "agent_tools_enabled": CFG.get('agent_tools_enabled', True) and llm_interface.available,
+        "rag_enabled": getattr(CFG, 'rag_enable_explanation', True),
+        "agent_tools_enabled": getattr(CFG, 'agent_tools_enabled', True) and llm_interface.available,
         "index_type": CFG.index_string,
         "feat_dim": CFG.feat_dim,
         "index": index_status
