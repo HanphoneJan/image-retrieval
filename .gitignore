@@ -196,6 +196,14 @@ image_retrieval_server/data/
 *.gif
 *.bmp
 
+# README screenshots - allow img directory
+!img/
+!img/*.png
+!img/*.jpg
+!img/*.jpeg
+!img/*.gif
+!img/*.bmp
+
 # Uploaded images (Flask)
 uploads/
 static/uploads/
