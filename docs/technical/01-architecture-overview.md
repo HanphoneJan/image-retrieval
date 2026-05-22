@@ -24,7 +24,7 @@
           │                 │                 │
           ▼                 ▼                 ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          RAG 引擎层 (Orchestration Layer)                      │
+│                          LLM 智能层 (Intelligence Layer)                      │
 │                                                                             │
 │   ┌─────────────────────────────────────────────────────────────────┐       │
 │   │                      RAGEngine (编排器)                          │       │
@@ -121,7 +121,7 @@
 | | 前端模板 | Jinja2 | Flask默认模板引擎 |
 | | API格式 | RESTful + JSON | 标准REST设计 |
 | | Agent协议 | OpenAI Function Calling | 行业标准工具格式 |
-| **RAG引擎层** | LLM接口 | OpenAI SDK | 兼容OpenAI格式的API |
+| **LLM智能层** | LLM接口 | OpenAI SDK | 兼容OpenAI格式的API |
 | | 查询扩展 | LLM Prompt工程 | 多视角生成策略 |
 | | 结果解释 | LLM生成 | 自然语言描述 |
 | | 编排逻辑 | Python原生 | 流水线编排 |
@@ -169,7 +169,7 @@ dependencies = [
 | **IncrementalIndexManager** | `incremental_index_manager.py:17-393` | 增量索引管理 | 缓冲区+逻辑删除设计 |
 | **ImageRetrievalModule** | `retrieval_by_faiss.py:148-210` | 检索流程整合 | 统一文本/图像输入接口 |
 | **LLMInterface** | `llm_interface.py:14-284` | LLM能力封装 | Graceful degradation |
-| **RAGEngine** | `rag_engine.py:21-275` | RAG流程编排 | Pipeline化设计 |
+| **RAGEngine** | `rag_engine.py:21-275` | LLM增强检索流程编排 | Pipeline化设计 |
 | **AgentTools** | `agent_tools.py:88-331` | 工具定义与执行 | OpenAI格式兼容 |
 | **FlaskApp** | `flask_app.py` | API暴露 | 14个RESTful端点 |
 
@@ -185,7 +185,7 @@ dependencies = [
      ▼                ▼
 ┌─────────┐     ┌─────────────┐
 │RAGEngine│     │ImageRetrieval│
-│(RAG流程) │     │   Module     │
+│(LLM增强流程) │     │   Module     │
 └────┬────┘     │(传统检索)    │
      │          └──────┬──────┘
      │                 │
@@ -324,7 +324,7 @@ CFG.llm_api_key = os.getenv('LLM_API_KEY', '')
     ▼
 检查LLM可用性 ──→ 不可用 ──→ 跳过LLM功能，返回传统检索结果
     │
-    └─→ 可用 ──→ 执行完整RAG流程（查询扩展+AI解释）
+    └─→ 可用 ──→ 执行完整LLM增强流程（查询扩展+AI解释）
 ```
 
 **实现代码** (rag_engine.py:50-51):
@@ -342,7 +342,7 @@ self.enable_explanation = enable_explanation and self.llm.available
 |:---|:---|:---|:---|
 | `/` | GET | Web UI首页 | 无 |
 | `/search` | POST | 传统图像检索 | CLIP+Faiss |
-| `/api/search/rag` | POST | RAG增强检索 | +LLM |
+| `/api/search/rag` | POST | LLM增强检索 | +LLM |
 | `/api/search/expand` | POST | 查询扩展 | +LLM |
 | `/api/rag/qa` | POST | RAG问答 | +LLM |
 | `/api/chat` | POST | 多轮对话 | +LLM |
@@ -415,7 +415,7 @@ self.register_tool(
 )
 ```
 
-### 6.2 如何扩展RAG Pipeline
+### 6.2 如何扩展检索Pipeline
 
 ```python
 # 使用 RAGPipeline 构建自定义流程

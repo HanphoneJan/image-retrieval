@@ -515,9 +515,9 @@ def load_state(self, map_dict):
 
 ---
 
-## 3. RAG引擎层设计
+## 3. LLM智能层设计
 
-### 3.1 RAGEngine - 核心编排器
+### 3.1 RAGEngine - LLM增强检索编排器
 
 **职责**: 整合检索与LLM能力，实现智能检索流程，支持增量索引
 
@@ -676,7 +676,7 @@ def search_and_explain(self, query, topk=10, use_expansion=True):
     return result
 ```
 
-#### 3.1.3 RAG问答 (rag_qa)
+#### 3.1.3 AI问答 (rag_qa)
 
 ```python
 def rag_qa(self, question: str, topk: int = 5) -> Dict[str, Any]:
@@ -708,7 +708,7 @@ def rag_qa(self, question: str, topk: int = 5) -> Dict[str, Any]:
 
 ### 3.2 LLMInterface - LLM能力封装
 
-**职责**: 封装所有LLM调用，提供查询扩展、结果解释、RAG问答等功能
+**职责**: 封装所有LLM调用，提供查询扩展、结果解释、AI问答等功能
 
 **设计模式**: 策略模式 + 工厂模式
 
@@ -978,7 +978,7 @@ if CFG.agent_tools_enabled and llm_interface.available:
 
 ### 4.2 API端点设计
 
-#### RAG检索端点 (`flask_app.py:92-121`)
+#### LLM增强检索端点 (`flask_app.py:92-121`)
 
 ```python
 @app.route('/api/search/rag', methods=['POST'])
@@ -1060,7 +1060,7 @@ CFG.llm_api_key = os.getenv('LLM_API_KEY', '')
 | **LLM配置** | llm_base_url | API地址 |
 | | llm_api_key | API密钥 |
 | | llm_model | 模型名称 |
-| **RAG配置** | rag_enable_expansion | 查询扩展开关 |
+| **检索增强配置** | rag_enable_expansion | 查询扩展开关 |
 | | rag_enable_explanation | AI解释开关 |
 | | rag_context_size | 上下文数量 |
 | **Agent配置** | agent_tools_enabled | 工具开关 |
@@ -1075,7 +1075,7 @@ CFG.llm_api_key = os.getenv('LLM_API_KEY', '')
 |:---|:---|:---|
 | **应用层** | 参数错误 | 返回400状态码 + 错误信息 |
 | | LLM不可用 | 返回503状态码 |
-| **RAG引擎层** | 单查询失败 | 记录日志，继续其他查询 |
+| **LLM智能层** | 单查询失败 | 记录日志，继续其他查询 |
 | | LLM调用失败 | 返回降级结果 |
 | **检索层** | 文件不存在 | 返回'None'占位 |
 | | 索引未找到 | 返回-1索引 |
@@ -1138,7 +1138,7 @@ def _filter_by_color(self, color: str) -> Dict[str, Any]:
     return {"filtered_results": [...]}
 ```
 
-### 7.2 RAG Pipeline扩展
+### 7.2 检索Pipeline扩展
 
 ```python
 # 创建自定义Pipeline

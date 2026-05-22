@@ -340,7 +340,7 @@ nbits = 8  # 256个中心
 
 ---
 
-## 3. RAG检索流程算法
+## 3. LLM增强检索流程
 
 ### 3.1 查询扩展算法
 
@@ -492,11 +492,11 @@ def _merge_multi_query_results(self, query_results_list, topk):
 (依赖Faiss返回的已排序结果)
 ```
 
-### 3.3 完整RAG检索流程
+### 3.3 完整LLM增强检索流程
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              RAG检索算法 (search_and_explain)               │
+│              LLM增强检索流程 (search_and_explain)               │
 │                                                             │
 │  输入: query, topk=10, use_expansion=True                   │
 │  输出: {original_query, expanded_queries, results,          │

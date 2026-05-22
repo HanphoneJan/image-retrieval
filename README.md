@@ -1,12 +1,12 @@
-# 🔍 多模态RAG检索引擎
+# 🔍 多模态智能检索引擎
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)  [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)](https://pytorch.org/)  [![Flask](https://img.shields.io/badge/Flask-2.0+-000000.svg)](https://flask.palletsprojects.com/)
 
-基于 **CLIP + Faiss + LLM** 的智能语义检索系统，支持以文搜图、以图搜图、RAG增强检索和Agent工具调用。
+基于 **CLIP + Faiss + LLM** 的智能语义检索系统，支持以文搜图、以图搜图、LLM增强检索和Agent工具调用。
 
 > 📚 **改进自**: [《PyTorch实用教程（第二版）》第8.8章 - CLIP+Faiss+Flask的图像检索系统](https://tingsongyu.github.io/PyTorch-Tutorial-2nd/chapter-8/8.8-image-retrieval-2.html)
 >
-> 在原教程项目上，增加了 RAG 增强检索、LLM 智能解释、Agent 工具系统等高级功能。
+> 在原教程项目上，增加了 LLM增强检索、LLM智能解释、Agent工具系统等高级功能。
 
 ---
 
@@ -15,7 +15,7 @@
 | 特性                   | 说明                                            | 状态 |
 | :--------------------- | :---------------------------------------------- | :--: |
 | 🔤**多模态检索** | CLIP统一编码图像与文本，实现跨模态语义匹配      |  ✅  |
-| 🧠**RAG增强**    | LLM查询扩展、结果智能解释、基于检索的问答       |  ✅  |
+| 🧠**LLM增强**    | LLM查询扩展、结果智能解释、基于检索的问答       |  ✅  |
 | ⚡**高性能检索** | Faiss IVF-PQ索引，支持百万级数据毫秒级响应      |  ✅  |
 | 🔄**增量更新**   | 支持动态添加/删除图片，无需全量重建索引         |  ✅  |
 | 🤖**Agent工具**  | 标准化工具定义，支持OpenAI Function Calling集成 |  ✅  |
@@ -52,7 +52,7 @@ uv pip install -e .
 
 ### 配置 LLM（可选）
 
-RAG 功能需要 LLM 支持，不配置则自动降级为传统检索：
+LLM 增强功能需要 LLM 支持，不配置则自动降级为传统检索：
 
 ```bash
 # 方法1：环境变量
@@ -93,14 +93,14 @@ python flask_app.py
 
 - 🔍 **文本搜索**: 输入自然语言描述（如 "a dog playing in the park"）
 - 🖼️ **图片搜索**: 上传图片查找相似图片
-- 🤖 **RAG模式**: 启用AI解释和查询扩展
+- 🤖 **LLM增强模式**: 启用AI解释和查询扩展
 
 #### 首页
 
 ![首页](img/home.png)
 
-#### RAG增强检索结果
-![RAG检索结果](img/search_with_llm.png)
+#### LLM增强检索结果
+![LLM增强检索结果](img/search_with_llm.png)
 
 ### API 接口
 
@@ -118,7 +118,7 @@ curl -X POST http://localhost:5000/search \
   -F "topk=10"
 ```
 
-#### RAG 增强检索
+#### LLM 增强检索
 
 ```bash
 curl -X POST http://localhost:5000/api/search/rag \
@@ -148,7 +148,7 @@ curl -X POST http://localhost:5000/api/search/rag \
 }
 ```
 
-#### RAG 问答
+#### AI 问答
 
 ```bash
 curl -X POST http://localhost:5000/api/rag/qa \
@@ -231,7 +231,7 @@ curl -X POST http://localhost:5000/api/index/rebuild
 │  │              │  │  /api/search │  │   Calling)   │       │
 │  └──────────────┘  └──────────────┘  └──────────────┘       │
 ├─────────────────────────────────────────────────────────────┤
-│                       RAG 引擎层                             │
+│                       LLM 智能层                             │
 │  ┌─────────────────────────────────────────────────────┐    │
 │  │              RAGEngine (流程编排)                    │    │
 │  │  ┌──────────┐   ┌──────────┐   ┌──────────────┐    │    │
@@ -270,7 +270,7 @@ curl -X POST http://localhost:5000/api/index/rebuild
 ```
 image-retrieval/
 ├── 📄 flask_app.py                # Flask Web服务（14个API端点）
-├── 📄 rag_engine.py               # RAG核心引擎（流程编排）
+├── 📄 rag_engine.py               # LLM增强核心引擎（流程编排）
 ├── 📄 llm_interface.py            # LLM接口封装（查询扩展/解释）
 ├── 📄 agent_tools.py              # Agent工具系统（Function Calling）
 ├── 📄 retrieval_by_faiss.py       # Faiss检索模块（索引+CLIP编码）
@@ -309,7 +309,7 @@ image-retrieval/
 | **向量索引**  | ✅ Faiss IVF-PQ  | ✅ Faiss IVF-PQ + 优化封装  |
 | **Web界面**   | ✅ Flask基础界面 | ✅ 增强界面 + REST API      |
 | **增量更新**  | ❌               | ✅ 动态添加/删除图片        |
-| **RAG增强**   | ❌               | ✅ 查询扩展 + AI解释 + 问答 |
+| **LLM增强**   | ❌               | ✅ 查询扩展 + AI解释 + 问答 |
 | **LLM集成**   | ❌               | ✅ OpenAI兼容API封装        |
 | **Agent工具** | ❌               | ✅ Function Calling支持     |
 | **配置管理**  | ❌               | ✅ 环境变量 + 配置驱动      |
@@ -317,7 +317,7 @@ image-retrieval/
 
 ### 核心改进点
 
-1. **RAG Pipeline**: 完整的检索增强生成流程，不只是简单搜索
+1. **LLM增强流程**: 实现了检索+LLM增强的完整链路，不只是简单搜索
 2. **LLM增强**: 查询扩展（召回率提升30%+）、结果智能解释、多轮对话
 3. **Agent系统**: 标准化工具接口，支持被外部AI Agent调用
 4. **工程化**: 模块化架构、配置驱动、类型注解、优雅降级
@@ -349,7 +349,7 @@ Faiss IVF-PQ索引优化：
 - **PQ32x8**: 乘积量化，将向量压缩16-127倍
 - **性能**: 120K数据毫秒级响应，内存仅1.9MB
 
-### 3. 完整的RAG链路
+### 3. LLM增强检索流程
 
 ```
 用户查询 → 查询扩展(LLM) → 多路检索(CLIP+Faiss) → 去重融合 → AI解释(LLM)
@@ -427,9 +427,9 @@ Faiss IVF-PQ索引优化：
 
 - 📷 **智能图库管理** - 自然语言搜索个人照片库
 - 🤖 **AI助手** - 为AI助手提供图像检索能力
-- 📚 **多模态知识库** - 构建图文混合的RAG应用
+- 📚 **多模态知识库** - 构建图文混合的LLM增强应用
 - 🔧 **Agent工具** - 为AI Agent提供标准化图像检索工具
-- 🎓 **学习参考** - 学习RAG、Agent、向量检索的完整示例
+- 🎓 **学习参考** - 学习Agent、向量检索、LLM增强检索的完整示例
 
 ---
 
